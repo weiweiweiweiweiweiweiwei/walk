@@ -1,174 +1,229 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>簡易計步器</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f2f5;
-            color: #333;
-            -webkit-tap-highlight-color: transparent; /* 移除點擊高亮效果 */
-        }
-        .container {
-            text-align: center;
-            padding: 20px;
-            background-color: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-        #step-count {
-            font-size: 80px;
-            font-weight: bold;
-            color: #007bff;
-            margin: 20px 0;
-        }
-        #status {
-            font-size: 18px;
-            color: #666;
-            min-height: 25px;
-            margin-bottom: 25px;
-        }
-        .button-group {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.1s;
-        }
-        #startButton { background-color: #28a745; }
-        #stopButton { background-color: #dc3545; }
-        #resetButton { background-color: #ffc107; color: #333; }
-        button:active {
-            transform: scale(0.95);
-        }
-        .footer {
-            margin-top: 30px;
-            font-size: 12px;
-            color: #888;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>步數計算機</title>
+  <style>
+    /* 1. 全局風格：字體、背景、平滑過渡 */
+    :root {
+      --system-background: #f0f0f7;
+      --card-background: #ffffff;
+      --primary-text-color: #1d1d1f;
+      --secondary-text-color: #6e6e73;
+      --action-blue: #007aff;
+      --font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", "Noto Sans TC", sans-serif;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--system-background);
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* 2. 主卡片佈局：給予深度和呼吸空間 */
+    .container {
+      background-color: var(--card-background);
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      padding: 2.5rem 2rem;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    /* 3. 標題和描述：建立視覺層次 */
+    h1 {
+      color: var(--primary-text-color);
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: var(--secondary-text-color);
+      margin-top: 0;
+      margin-bottom: 2rem;
+      line-height: 1.5;
+    }
+
+    /* 4. 輸入框：清晰、易於互動 */
+    .input-group {
+      margin-bottom: 1.5rem;
+    }
+
+    #numberInput {
+      font-family: var(--font-family);
+      font-size: 1.2rem;
+      font-weight: 500;
+      text-align: center;
+      width: calc(100% - 2rem);
+      padding: 0.8rem 1rem;
+      border: 1.5px solid #e5e5e5;
+      border-radius: 12px;
+      background-color: #f9f9f9;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #numberInput:focus {
+      outline: none;
+      border-color: var(--action-blue);
+      box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+    
+    /* 5. 結果顯示：答案是英雄 */
+    .result-area {
+        margin-top: 2.5rem;
+    }
+    
+    #resultText {
+        font-size: 1rem;
+        color: var(--secondary-text-color);
+        margin: 0;
+    }
+    
+    #resultSteps {
+        font-size: 3.5rem;
+        font-weight: 700;
+        color: var(--primary-text-color);
+        margin: 0.25rem 0 0 0;
+        line-height: 1.2;
+        /* 加入一個簡單的淡入動畫 */
+        opacity: 0;
+        transition: opacity 0.5s ease;
+    }
+
+    #resultSteps.visible {
+        opacity: 1;
+    }
+
+
+  </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>我的計步器</h1>
-        <p id="status">點擊「開始」來計算步數</p>
-        <div id="step-count">0</div>
-        <div class="button-group">
-            <button id="startButton">開始</button>
-            <button id="stopButton">停止</button>
-            <button id="resetButton">重設</button>
-        </div>
+  <div class="container">
+    <h1>步數計算機</h1>
+    <p>輸入您心中默數到的最後一個數字，即可換算為總步數。</p>
+
+    <div class="input-group">
+      <input 
+        type="number" 
+        id="numberInput" 
+        placeholder="例如：1135" 
+        min="1"
+        oninput="calculateSteps()"
+      >
     </div>
-    <p class="footer">為了獲得較佳準確度，請將手機握在手中或放在貼身的口袋裡。</p>
+    
+    <div class="result-area">
+        <p id="resultText">總步數是</p>
+        <h2 id="resultSteps">0</h2>
+    </div>
 
-    <script>
-        // 獲取頁面上的元素
-        const stepCountElement = document.getElementById('step-count');
-        const startButton = document.getElementById('startButton');
-        const stopButton = document.getElementById('stopButton');
-        const resetButton = document.getElementById('resetButton');
-        const statusElement = document.getElementById('status');
+  </div>
 
-        let stepCount = 0;
-        let isCounting = false;
+  <script>
+    // ----- 核心邏輯 -----
+    const numberInput = document.getElementById('numberInput');
+    const resultStepsEl = document.getElementById('resultSteps');
+
+    // 建立一個快取，避免重複計算，提升效能
+    const memo = {};
+
+    function numberToChinese(num) {
+      if (memo[num]) return memo[num];
+
+      const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+      const units = ["", "十", "百", "千"];
+
+      if (num === 0) return "零";
+      if (num < 10) return digits[num];
+      
+      let str = "";
+      const s = String(num);
+      
+      if(s.length === 2) { // 十位數的特殊處理
+        const ten = Math.floor(num / 10);
+        const one = num % 10;
+        str = (ten > 1 ? digits[ten] : "") + units[1] + (one > 0 ? digits[one] : "");
+        memo[num] = str;
+        return str;
+      }
+      
+      // 其他情況（百、千）
+      for (let i = 0; i < s.length; i++) {
+        const digit = parseInt(s[i]);
+        const unit = units[s.length - 1 - i];
         
-        // 靈敏度相關設定
-        const sensitivity = 20; // 加速度門檻值，數值越高，需要越大的動作才會計數
-        let lastAcceleration = 0;
-        let lastStepTime = 0; // 記錄上一步的時間戳
-        const stepCooldown = 500; // 兩步之間最小的時間間隔 (毫秒)
-
-        // 核心計步邏輯
-        function stepDetector(event) {
-            if (!isCounting) return;
-
-            // 獲取加速度數據
-            const acceleration = event.accelerationIncludingGravity;
-            const now = new Date().getTime();
-            
-            // 計算加速度向量的總和
-            const totalAcceleration = Math.sqrt(
-                Math.pow(acceleration.x, 2) +
-                Math.pow(acceleration.y, 2) +
-                Math.pow(acceleration.z, 2)
-            );
-
-            // 簡易的波峰檢測算法
-            // 檢查是否超過門檻值，且加速度方向正在改變(從上升變為下降)，且距離上一步有足夠時間
-            if (totalAcceleration > sensitivity && lastAcceleration <= sensitivity && (now - lastStepTime > stepCooldown)) {
-                stepCount++;
-                stepCountElement.innerText = stepCount;
-                lastStepTime = now; // 更新最後一步的時間
+        if (digit === 0) {
+            // 如果前一位不是零，且不是最後一位，才加上零
+            if (i > 0 && s[i-1] !== '0' && i < s.length -1) {
+                 str += digits[0];
             }
+        } else {
+             str += digits[digit] + unit;
+        }
+      }
 
-            lastAcceleration = totalAcceleration;
+      memo[num] = str.replace(/零+$/, ""); // 去除結尾的零
+      return memo[num];
+    }
+    
+    // 預先計算好的累計步數表，大大加速高數值計算
+    const cumulativeSteps = { 0: 0 };
+    let preCalculatedMax = 0;
+
+    function calculateTotalSteps(maxNumber) {
+        if (maxNumber <= 0 || isNaN(maxNumber)) {
+            return 0;
         }
 
-        // 開始計步
-        startButton.addEventListener('click', () => {
-            // 檢查裝置是否支援 DeviceMotionEvent API
-            if (window.DeviceMotionEvent) {
-                // 為了相容 iOS 13+，需要明確請求權限
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                    DeviceMotionEvent.requestPermission().then(permissionState => {
-                        if (permissionState === 'granted') {
-                            startCounting();
-                        } else {
-                            statusElement.innerText = '您必須允許存取動作感應器';
-                            alert('錯誤：您必須允許網頁存取您手機的動作感應器才能開始計步。');
-                        }
-                    }).catch(console.error);
-                } else {
-                    // 對於 Android 或舊版 iOS
-                    startCounting();
-                }
-            } else {
-                statusElement.innerText = '您的裝置不支援計步功能';
-                alert('錯誤：您的瀏覽器或裝置不支援所需的感應器。');
-            }
-        });
-
-        function startCounting() {
-            if (isCounting) return;
-            isCounting = true;
-            statusElement.innerText = '計步中...';
-            window.addEventListener('devicemotion', stepDetector, false);
+        // 如果輸入的數字在已計算範圍內，直接回傳
+        if (maxNumber <= preCalculatedMax) {
+            return cumulativeSteps[maxNumber];
         }
 
-        // 停止計步
-        stopButton.addEventListener('click', () => {
-            if (!isCounting) return;
-            isCounting = false;
-            statusElement.innerText = '已停止，點擊「開始」繼續';
-            window.removeEventListener('devicemotion', stepDetector, false);
-        });
+        let totalSteps = cumulativeSteps[preCalculatedMax];
+        
+        // 只計算新的部分
+        for (let i = preCalculatedMax + 1; i <= maxNumber; i++) {
+            totalSteps += numberToChinese(i).length;
+            cumulativeSteps[i] = totalSteps;
+        }
 
-        // 重設計數器
-        resetButton.addEventListener('click', () => {
-            stepCount = 0;
-            stepCountElement.innerText = stepCount;
-            if (!isCounting) {
-                statusElement.innerText = '點擊「開始」來計算步數';
-            }
-        });
+        // 更新已計算的最大值
+        preCalculatedMax = maxNumber;
 
-    </script>
+        return totalSteps;
+    }
+
+
+    // ----- 互動邏輯 -----
+    function calculateSteps() {
+      const value = parseInt(numberInput.value, 10);
+      
+      if (!value || value <= 0) {
+        resultStepsEl.textContent = '0';
+        resultStepsEl.classList.remove('visible');
+        return;
+      }
+      
+      const totalSteps = calculateTotalSteps(value);
+      
+      // 使用 toLocaleString() 來加上千分位符號，提升可讀性
+      resultStepsEl.textContent = totalSteps.toLocaleString('en-US'); 
+      resultStepsEl.classList.add('visible');
+    }
+
+  </script>
 </body>
 </html>
