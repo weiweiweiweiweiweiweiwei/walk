@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>簡易計步器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #333;
+            -webkit-tap-highlight-color: transparent; /* 移除點擊高亮效果 */
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        #step-count {
+            font-size: 80px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 20px 0;
+        }
+        #status {
+            font-size: 18px;
+            color: #666;
+            min-height: 25px;
+            margin-bottom: 25px;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+        #startButton { background-color: #28a745; }
+        #stopButton { background-color: #dc3545; }
+        #resetButton { background-color: #ffc107; color: #333; }
+        button:active {
+            transform: scale(0.95);
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>我的計步器</h1>
+        <p id="status">點擊「開始」來計算步數</p>
+        <div id="step-count">0</div>
+        <div class="button-group">
+            <button id="startButton">開始</button>
+            <button id="stopButton">停止</button>
+            <button id="resetButton">重設</button>
+        </div>
+    </div>
+    <p class="footer">為了獲得較佳準確度，請將手機握在手中或放在貼身的口袋裡。</p>
+
+    <script>
+        // 獲取頁面上的元素
+        const stepCountElement = document.getElementById('step-count');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const resetButton = document.getElementById('resetButton');
+        const statusElement = document.getElementById('status');
+
+        let stepCount = 0;
+        let isCounting = false;
+        
+        // 靈敏度相關設定
+        const sensitivity = 20; // 加速度門檻值，數值越高，需要越大的動作才會計數
+        let lastAcceleration = 0;
+        let lastStepTime = 0; // 記錄上一步的時間戳
+        const stepCooldown = 500; // 兩步之間最小的時間間隔 (毫秒)
+
+        // 核心計步邏輯
+        function stepDetector(event) {
+            if (!isCounting) return;
+
+            // 獲取加速度數據
+            const acceleration = event.accelerationIncludingGravity;
+            const now = new Date().getTime();
+            
+            // 計算加速度向量的總和
+            const totalAcceleration = Math.sqrt(
+                Math.pow(acceleration.x, 2) +
+                Math.pow(acceleration.y, 2) +
+                Math.pow(acceleration.z, 2)
+            );
+
+            // 簡易的波峰檢測算法
+            // 檢查是否超過門檻值，且加速度方向正在改變(從上升變為下降)，且距離上一步有足夠時間
+            if (totalAcceleration > sensitivity && lastAcceleration <= sensitivity && (now - lastStepTime > stepCooldown)) {
+                stepCount++;
+                stepCountElement.innerText = stepCount;
+                lastStepTime = now; // 更新最後一步的時間
+            }
+
+            lastAcceleration = totalAcceleration;
+        }
+
+        // 開始計步
+        startButton.addEventListener('click', () => {
+            // 檢查裝置是否支援 DeviceMotionEvent API
+            if (window.DeviceMotionEvent) {
+                // 為了相容 iOS 13+，需要明確請求權限
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                    DeviceMotionEvent.requestPermission().then(permissionState => {
+                        if (permissionState === 'granted') {
+                            startCounting();
+                        } else {
+                            statusElement.innerText = '您必須允許存取動作感應器';
+                            alert('錯誤：您必須允許網頁存取您手機的動作感應器才能開始計步。');
+                        }
+                    }).catch(console.error);
+                } else {
+                    // 對於 Android 或舊版 iOS
+                    startCounting();
+                }
+            } else {
+                statusElement.innerText = '您的裝置不支援計步功能';
+                alert('錯誤：您的瀏覽器或裝置不支援所需的感應器。');
+            }
+        });
+
+        function startCounting() {
+            if (isCounting) return;
+            isCounting = true;
+            statusElement.innerText = '計步中...';
+            window.addEventListener('devicemotion', stepDetector, false);
+        }
+
+        // 停止計步
+        stopButton.addEventListener('click', () => {
+            if (!isCounting) return;
+            isCounting = false;
+            statusElement.innerText = '已停止，點擊「開始」繼續';
+            window.removeEventListener('devicemotion', stepDetector, false);
+        });
+
+        // 重設計數器
+        resetButton.addEventListener('click', () => {
+            stepCount = 0;
+            stepCountElement.innerText = stepCount;
+            if (!isCounting) {
+                statusElement.innerText = '點擊「開始」來計算步數';
+            }
+        });
+
+    </script>
+</body>
+</html>
