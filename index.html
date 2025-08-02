@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
+  <!-- RWD 關鍵 1: Viewport Meta Tag -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>步數計算機</title>
   <style>
-    /* 1. 全局風格：字體、背景、平滑過渡 */
     :root {
       --system-background: #f0f0f7;
       --card-background: #ffffff;
@@ -27,43 +27,48 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* 2. 主卡片佈局：給予深度和呼吸空間 */
     .container {
       background-color: var(--card-background);
       border-radius: 20px;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      padding: 2.5rem 2rem;
-      max-width: 500px;
-     
+      /* RWD 關鍵 3: 調整 Padding 適應小螢幕 */
+      padding: 2.5rem 2rem; 
+      max-width: 380px;
       width: 90%;
       text-align: center;
       transition: all 0.3s ease;
     }
 
-    /* 3. 標題和描述：建立視覺層次 */
+    /* RWD 關鍵 2: Fluid Typography using clamp() */
+    /* clamp(最小值, 理想值, 最大值) */
+    /* vw = viewport width, 1vw 是螢幕寬度的 1% */
+
     h1 {
       color: var(--primary-text-color);
-      font-size: 1.8rem;
+      /* 字體在 1.5rem (24px) 到 1.8rem (28.8px) 之間動態縮放 */
+      font-size: clamp(1.5rem, 5vw, 1.8rem);
       font-weight: 600;
       margin-top: 0;
-      margin-bottom: 1.2rem;
+      margin-bottom: 0.5rem;
     }
 
     p {
       color: var(--secondary-text-color);
+      /* 字體在 0.9rem (14.4px) 到 1rem (16px) 之間動態縮放 */
+      font-size: clamp(0.9rem, 2.5vw, 1rem);
       margin-top: 0;
-      margin-bottom: 3rem;
+      margin-bottom: 2rem;
       line-height: 1.5;
     }
 
-    /* 4. 輸入框：清晰、易於互動 */
     .input-group {
       margin-bottom: 1.5rem;
     }
 
     #numberInput {
       font-family: var(--font-family);
-      font-size: 1.2rem;
+      /* 字體在 1rem (16px) 到 1.2rem (19.2px) 之間動態縮放 */
+      font-size: clamp(1rem, 4vw, 1.2rem);
       font-weight: 500;
       text-align: center;
       width: calc(100% - 2rem);
@@ -80,32 +85,39 @@
       box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
     }
     
-    /* 5. 結果顯示：答案是英雄 */
     .result-area {
         margin-top: 2.5rem;
     }
     
     #resultText {
-        font-size: 1rem;
+        /* 和 p 標籤使用相同的縮放規則 */
+        font-size: clamp(0.9rem, 2.5vw, 1rem);
         color: var(--secondary-text-color);
         margin: 0;
     }
     
     #resultSteps {
-        font-size: 3.5rem;
-        font-weight: 700;
-        color: var(--primary-text-color);
-        margin: 0.25rem 0 0 0;
-        line-height: 1.2;
-        /* 加入一個簡單的淡入動畫 */
-        opacity: 0;
-        transition: opacity 0.5s ease;
+      font-weight: 700;
+      color: var(--primary-text-color);
+      margin: 0.25rem 0 0 0;
+      line-height: 1.2;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      /* 結果數字是主角，給予最大膽的縮放範圍 */
+      font-size: clamp(2.8rem, 15vw, 4rem);
     }
 
     #resultSteps.visible {
         opacity: 1;
     }
 
+    /* RWD 關鍵 3: Media Query Breakpoint */
+    /* 當螢幕寬度小於等於 360px 時 (例如 iPhone SE)，減少左右 padding */
+    @media (max-width: 360px) {
+        .container {
+            padding: 2rem 1.25rem;
+        }
+    }
 
   </style>
 </head>
@@ -129,30 +141,28 @@
         <p id="resultText">總步數是</p>
         <h2 id="resultSteps">0</h2>
     </div>
-
   </div>
 
   <script>
-    // ----- 核心邏輯 -----
+    // ----- JavaScript 邏輯部分保持不變，因為它已經很高效了 -----
     const numberInput = document.getElementById('numberInput');
     const resultStepsEl = document.getElementById('resultSteps');
 
-    // 建立一個快取，避免重複計算，提升效能
     const memo = {};
+    const cumulativeSteps = { 0: 0 };
+    let preCalculatedMax = 0;
 
     function numberToChinese(num) {
       if (memo[num]) return memo[num];
-
+      if (num === 0) return "零";
       const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
       const units = ["", "十", "百", "千"];
-
-      if (num === 0) return "零";
-      if (num < 10) return digits[num];
-      
       let str = "";
       const s = String(num);
+
+      if (num < 10) return digits[num];
       
-      if(s.length === 2) { // 十位數的特殊處理
+      if(s.length === 2) {
         const ten = Math.floor(num / 10);
         const one = num % 10;
         str = (ten > 1 ? digits[ten] : "") + units[1] + (one > 0 ? digits[one] : "");
@@ -160,55 +170,37 @@
         return str;
       }
       
-      // 其他情況（百、千）
       for (let i = 0; i < s.length; i++) {
         const digit = parseInt(s[i]);
         const unit = units[s.length - 1 - i];
         
         if (digit === 0) {
-            // 如果前一位不是零，且不是最後一位，才加上零
             if (i > 0 && s[i-1] !== '0' && i < s.length -1) {
-                 str += digits[0];
+                 if(!str.endsWith(digits[0])) str += digits[0];
             }
         } else {
              str += digits[digit] + unit;
         }
       }
 
-      memo[num] = str.replace(/零+$/, ""); // 去除結尾的零
+      str = str.replace(/零+$/, "");
+      memo[num] = str;
       return memo[num];
     }
     
-    // 預先計算好的累計步數表，大大加速高數值計算
-    const cumulativeSteps = { 0: 0 };
-    let preCalculatedMax = 0;
-
     function calculateTotalSteps(maxNumber) {
-        if (maxNumber <= 0 || isNaN(maxNumber)) {
-            return 0;
-        }
-
-        // 如果輸入的數字在已計算範圍內，直接回傳
-        if (maxNumber <= preCalculatedMax) {
-            return cumulativeSteps[maxNumber];
-        }
+        if (maxNumber <= 0 || isNaN(maxNumber)) return 0;
+        if (maxNumber <= preCalculatedMax) return cumulativeSteps[maxNumber];
 
         let totalSteps = cumulativeSteps[preCalculatedMax];
-        
-        // 只計算新的部分
         for (let i = preCalculatedMax + 1; i <= maxNumber; i++) {
             totalSteps += numberToChinese(i).length;
             cumulativeSteps[i] = totalSteps;
         }
-
-        // 更新已計算的最大值
         preCalculatedMax = maxNumber;
-
         return totalSteps;
     }
 
-
-    // ----- 互動邏輯 -----
     function calculateSteps() {
       const value = parseInt(numberInput.value, 10);
       
@@ -219,12 +211,9 @@
       }
       
       const totalSteps = calculateTotalSteps(value);
-      
-      // 使用 toLocaleString() 來加上千分位符號，提升可讀性
       resultStepsEl.textContent = totalSteps.toLocaleString('en-US'); 
       resultStepsEl.classList.add('visible');
     }
-
   </script>
 </body>
 </html>
